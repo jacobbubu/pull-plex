@@ -1,7 +1,6 @@
 import * as pull from 'pull-stream'
 import * as net from 'net'
 import { Plex, Channel, wrap } from '../src'
-import { link } from './utils'
 const toPull = require('stream-to-pull-stream')
 
 describe('net', () => {
@@ -15,6 +14,7 @@ describe('net', () => {
       if (result1 && result2) {
         expect(result1).toEqual([4, 5, 6])
         expect(result2).toEqual([1, 2, 3])
+        server.close()
         done()
       }
     }
@@ -34,7 +34,7 @@ describe('net', () => {
           pull(pull.values([4, 5, 6]), channel.sink)
         })
 
-        link(client, wrap(plexServer))
+        pull(client, wrap(plexServer), client)
       })
       .listen(PORT)
 
@@ -53,7 +53,7 @@ describe('net', () => {
         })
       )
 
-      link(client, wrap(plexClient))
+      pull(client, wrap(plexClient), client)
     })
   })
 })

@@ -26,5 +26,4 @@ plex2.on('channel', (channel: Channel) => {
   pull(pull.values([4, 5, 6]), channel.sink)
 })
 
-pull(plex1, plex2)
-pull(plex2, plex1)
+pull(plex1, plex2, plex1)

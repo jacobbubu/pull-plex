@@ -34,9 +34,7 @@ const server = net
       pull(pull.values([4, 5, 6]), channel.sink)
     })
 
-    const wrapped = wrap(plexServer)
-    pull(client.source, wrapped.sink)
-    pull(wrapped.source, client.sink)
+    pull(client, wrap(plexServer), client)
   })
   .listen(PORT)
 
@@ -54,7 +52,5 @@ const rawClient = net.createConnection({ port: PORT }, () => {
     })
   )
 
-  const wrapped = wrap(plexClient)
-  pull(client.source, wrapped.sink)
-  pull(wrapped.source, client.sink)
+  pull(client, wrap(plexClient), client)
 })

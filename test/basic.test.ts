@@ -1,6 +1,5 @@
 import * as pull from 'pull-stream'
 import { Plex, Channel } from '../src'
-import { link } from './utils'
 
 describe('basic', () => {
   it('simple', (done) => {
@@ -41,6 +40,6 @@ describe('basic', () => {
       pull(pull.values([4, 5, 6]), channel.sink)
     })
 
-    link(plex1, plex2)
+    pull(plex1, plex2, plex1)
   })
 })
