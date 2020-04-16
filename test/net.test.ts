@@ -21,7 +21,7 @@ describe('net', () => {
 
     const server = net
       .createServer((socket) => {
-        const client = toPull.duplex(socket) as pull.DuplexThrough<Buffer, Buffer>
+        const client = toPull.duplex(socket) as pull.Duplex<Buffer, Buffer>
         const plexServer = new Plex('server')
         plexServer.on('channel', (channel: Channel) => {
           pull(
@@ -39,7 +39,7 @@ describe('net', () => {
       .listen(PORT)
 
     const rawClient = net.createConnection({ port: PORT }, () => {
-      const client = toPull.duplex(rawClient) as pull.DuplexThrough<Buffer, Buffer>
+      const client = toPull.duplex(rawClient) as pull.Duplex<Buffer, Buffer>
       const plexClient = new Plex('client')
       const a = plexClient.createChannel('a')
 
