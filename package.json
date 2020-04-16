@@ -28,7 +28,8 @@
     "commit": "git-cz",
     "precommit": "lint-staged",
     "example:ex1": "tsnd --respawn examples/ex1.ts",
-    "example:net": "tsnd --respawn examples/net.ts"
+    "example:net": "tsnd --respawn examples/net.ts",
+    "example:nested": "tsnd --respawn examples/nested.ts"
   },
   "lint-staged": {
     "{src,test}/**/*.ts": [
