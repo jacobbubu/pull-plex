@@ -29,6 +29,10 @@ export class Plex extends EventEmitter {
     this._logger = DefaultLogger.ns(this._plexName)
   }
 
+  get channels() {
+    return this._channels
+  }
+
   get plexName() {
     return this._plexName
   }
