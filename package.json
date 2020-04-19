@@ -112,10 +112,10 @@
     "access": "public"
   },
   "dependencies": {
-    "pull-stream": "^3.6.14",
     "@jacobbubu/debug": "^1.1.5",
     "@jacobbubu/pull-pushable": "^1.0.0",
     "@jacobbubu/pull-split": "^1.0.0",
-    "@jacobbubu/pull-through": "^1.0.1"
+    "@jacobbubu/pull-through": "^1.1.0",
+    "pull-stream": "^3.6.14"
   }
 }

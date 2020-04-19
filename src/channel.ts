@@ -6,6 +6,16 @@ import { Debug } from '@jacobbubu/debug'
 import { Plex } from './plex'
 import * as Event from './event'
 
+export interface Channel {
+  addListener(event: 'open', listener: (initiator: boolean, channel: Channel) => void): this
+  on(event: 'open', listener: (initiator: boolean, channel: Channel) => void): this
+  once(event: 'open', listener: (initiator: boolean, channel: Channel) => void): this
+
+  addListener(event: 'close', listener: (channel: Channel) => void): this
+  on(event: 'close', listener: (channel: Channel) => void): this
+  once(event: 'close', listener: (channel: Channel) => void): this
+}
+
 export class Channel extends EventEmitter {
   private _source: Read<any> | null = null
   private _sink: pull.Sink<any> | null = null
@@ -113,9 +123,13 @@ export class Channel extends EventEmitter {
   }
 
   private _finish() {
+    this.logger.debug(`_finish: %o`, {
+      sourceAborted: this._sourceAborted,
+      sinkEnded: this._sinkEnded,
+    })
     if (this._finished) return
-    this._finished = true
     if (this.ended) {
+      this._finished = true
       this.emit('close', this)
     }
   }

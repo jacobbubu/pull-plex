@@ -12,6 +12,16 @@ const createPlexName = (function () {
   return () => `p${counter++}`
 })()
 
+export interface Plex {
+  addListener(event: 'channel', listener: (channel: Channel) => void): this
+  on(event: 'channel', listener: (channel: Channel) => void): this
+  once(event: 'channel', listener: (channel: Channel) => void): this
+
+  addListener(event: 'close', listener: (plex: Plex) => void): this
+  on(event: 'close', listener: (plex: Plex) => void): this
+  once(event: 'close', listener: (plex: Plex) => void): this
+}
+
 export class Plex extends EventEmitter {
   private _channels: Record<string, Channel> = {}
   private _source: Read<PlexEvent> | null = null
@@ -29,6 +39,10 @@ export class Plex extends EventEmitter {
     this._logger = DefaultLogger.ns(this._plexName)
   }
 
+  get ended() {
+    return this._sourceAborted && this._sinkEnded
+  }
+
   get channels() {
     return this._channels
   }
@@ -44,9 +58,11 @@ export class Plex extends EventEmitter {
   get source() {
     if (!this._source) {
       const self = this
-      this._source = pushable((endOrError = null) => {
+      this._source = pushable((endOrError = true) => {
+        endOrError = endOrError ?? true
+        self.logger.debug('plex source closed', { endOrError })
         self._sourceAborted = endOrError
-        self._finish(endOrError)
+        self._finish()
       })
     }
     return this._source
@@ -60,7 +76,7 @@ export class Plex extends EventEmitter {
           self.logger.debug('plex sink read: %o', { endOrError, event })
           if (endOrError) {
             self._sinkEnded = endOrError
-            self._finish(endOrError)
+            self._finish()
             return
           }
           self._processSinkData(event!)
@@ -69,6 +85,12 @@ export class Plex extends EventEmitter {
       }
     }
     return this._sink
+  }
+
+  abort(abort: pull.Abort = true) {
+    if (!this.ended) {
+      this.source.end(abort)
+    }
   }
 
   private _processSinkData(event: PlexEvent) {
@@ -93,7 +115,7 @@ export class Plex extends EventEmitter {
   }
 
   private _openChannel(name: string, initiator: boolean) {
-    this.logger.debug(`open channel %s on %s:`, name, this._plexName)
+    this.logger.debug(`channel ${name} opened`)
     const channels = this._channels
     if (channels[name]) {
       throw new Error(`Channel(${name}) exists`)
@@ -102,7 +124,7 @@ export class Plex extends EventEmitter {
     const channel = new Channel(name, this)
     channel.on('close', (ch) => {
       delete this._channels[ch.name]
-      this.logger.debug(`close channel %s on %s:`, ch.name, this._plexName)
+      this.logger.debug(`channel '${ch.name}' closed`)
     })
     channel.open(initiator)
     channels[name] = channel
@@ -116,14 +138,22 @@ export class Plex extends EventEmitter {
     return channel
   }
 
-  private _finish(endOrError: pull.EndOrError) {
+  private _finish() {
+    this.logger.debug(`_finish: %o`, {
+      sourceAborted: this._sourceAborted,
+      sinkEnded: this._sinkEnded,
+    })
     if (this._finished) return
 
-    for (let key in Object.keys(this._channels)) {
-      if (this._channels[key]) {
-        this._channels[key].abort()
-        delete this._channels[key]
+    if (this.ended) {
+      this._finished = true
+      for (let key in Object.keys(this._channels)) {
+        if (this._channels[key]) {
+          this._channels[key].abort()
+          delete this._channels[key]
+        }
       }
+      this.emit('close', this)
     }
   }
 

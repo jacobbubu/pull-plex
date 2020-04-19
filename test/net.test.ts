@@ -14,8 +14,7 @@ describe('net', () => {
       if (result1 && result2) {
         expect(result1).toEqual([4, 5, 6])
         expect(result2).toEqual([1, 2, 3])
-        server.close()
-        done()
+        server.close(done)
       }
     }
 
@@ -42,6 +41,7 @@ describe('net', () => {
       const client = toPull.duplex(rawClient) as pull.Duplex<Buffer, Buffer>
       const plexClient = new Plex('client')
       const a = plexClient.createChannel('a')
+      a.on('close', (_) => plexClient.abort())
 
       pull(pull.values([1, 2, 3]), a.sink)
       pull(

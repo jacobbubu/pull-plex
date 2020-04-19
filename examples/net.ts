@@ -1,6 +1,6 @@
-process.env.DEBUG = process.env.DEBUG ?? 'plex*'
-process.env.DEBUG_NAME_WIDTH = '16'
-process.env.DEBUG_COLOR = 'true'
+// process.env.DEBUG = process.env.DEBUG ?? 'plex:client*'
+// process.env.DEBUG_NAME_WIDTH = '16'
+// process.env.DEBUG_COLOR = 'true'
 
 import * as pull from 'pull-stream'
 import * as net from 'net'
@@ -24,14 +24,19 @@ const server = net
     const client = toPull.duplex(socket) as pull.Duplex<Buffer, Buffer>
     const plexServer = new Plex('server')
 
+    plexServer.on('close', (self) => {
+      server.close()
+    })
+
     plexServer.on('channel', (channel: Channel) => {
       pull(
         channel.source,
         pull.collect((_, ary) => {
           result2 = ary
+          hasDone()
         })
       )
-      pull(pull.values([4, 5, 6]), channel.sink)
+      pull(pull.values([4]), channel.sink)
     })
 
     pull(client, wrap(plexServer), client)
@@ -41,9 +46,15 @@ const server = net
 const rawClient = net.createConnection({ port: PORT }, () => {
   const client = toPull.duplex(rawClient) as pull.Duplex<Buffer, Buffer>
   const plexClient = new Plex('client')
+
   const a = plexClient.createChannel('a')
 
-  pull(pull.values([1, 2, 3]), a.sink)
+  a.on('close', (channel) => {
+    // finish all of work, close the underline stream
+    plexClient.abort()
+  })
+
+  pull(pull.values([1]), a.sink)
   pull(
     a.source,
     pull.collect((_, ary) => {
