@@ -4,6 +4,7 @@ export enum CommandType {
   Open = 0,
   Data,
   EndOrError,
+  Meta,
 }
 
 export enum EventIndex {
@@ -24,4 +25,8 @@ export function Data(name: string, data: any): PlexEvent {
 
 export function EndOrError(name: string, endOrError: pull.EndOrError): PlexEvent {
   return [CommandType.EndOrError, name, endOrError]
+}
+
+export function Meta(meta: any): PlexEvent {
+  return [CommandType.Meta, '__meta__', meta]
 }

@@ -1,7 +1,7 @@
 import * as pull from 'pull-stream'
 import { pushable, Read } from '@jacobbubu/pull-pushable'
 import { EventEmitter } from 'events'
-import { PlexEvent, CommandType } from './event'
+import { PlexEvent, CommandType, Meta } from './event'
 import { Channel } from './channel'
 import { Debug } from '@jacobbubu/debug'
 
@@ -22,6 +22,12 @@ export interface Plex {
   once(event: 'close', listener: (plex: Plex) => void): this
 }
 
+type JsonType = number | null | string
+
+interface MetaType {
+  [key: string]: JsonType | MetaType
+}
+
 export class Plex extends EventEmitter {
   private _channels: Record<string, Channel> = {}
   private _source: Read<PlexEvent> | null = null
@@ -30,13 +36,24 @@ export class Plex extends EventEmitter {
   private _sinkEnded: pull.EndOrError = false
   private _finished = false
   private _plexName: string
+  private _meta: MetaType
+  private _peerMeta: MetaType = {}
 
   private _logger: Debug
 
-  constructor(name?: string) {
+  constructor(name?: string, meta: MetaType = {}) {
     super()
     this._plexName = name || createPlexName()
+    this._meta = { name: this._plexName, ...meta }
     this._logger = DefaultLogger.ns(this._plexName)
+  }
+
+  get meta() {
+    return this._meta
+  }
+
+  get peerMeta() {
+    return this._peerMeta
   }
 
   get ended() {
@@ -64,6 +81,7 @@ export class Plex extends EventEmitter {
         self._sourceAborted = endOrError
         self._finish()
       })
+      this._source.push(Meta(this._meta))
     }
     return this._source
   }
@@ -95,6 +113,11 @@ export class Plex extends EventEmitter {
 
   private _processSinkData(event: PlexEvent) {
     const [command, name, payload] = event
+    if (command === CommandType.Meta) {
+      this._peerMeta = payload
+      return
+    }
+
     if (command === CommandType.Open) {
       this._openRemoteChannel(name)
       return

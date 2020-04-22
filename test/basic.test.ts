@@ -3,8 +3,8 @@ import { Plex, Channel } from '../src'
 
 describe('basic', () => {
   it('simple', (done) => {
-    const plex1 = new Plex('p1')
-    const plex2 = new Plex('p2')
+    const plex1 = new Plex('p1', { from: 'p1' })
+    const plex2 = new Plex('p2', { from: 'p2' })
 
     const a = plex1.createChannel('a')
 
@@ -13,6 +13,8 @@ describe('basic', () => {
 
     const hasDone = () => {
       if (result1 && result2) {
+        expect(plex1.peerMeta).toEqual(plex2.meta)
+        expect(plex2.peerMeta).toEqual(plex1.meta)
         expect(result1).toEqual([4, 5, 6])
         expect(result2).toEqual([1, 2, 3])
         done()
