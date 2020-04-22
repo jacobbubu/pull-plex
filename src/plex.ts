@@ -17,9 +17,9 @@ export interface Plex {
   on(event: 'channel', listener: (channel: Channel) => void): this
   once(event: 'channel', listener: (channel: Channel) => void): this
 
-  addListener(event: 'close', listener: (plex: Plex) => void): this
-  on(event: 'close', listener: (plex: Plex) => void): this
-  once(event: 'close', listener: (plex: Plex) => void): this
+  addListener(event: 'close' | 'meta', listener: (plex: Plex) => void): this
+  on(event: 'close' | 'meta', listener: (plex: Plex) => void): this
+  once(event: 'close' | 'meta', listener: (plex: Plex) => void): this
 }
 
 type JsonType = number | null | string
@@ -120,6 +120,7 @@ export class Plex extends EventEmitter {
     const [command, name, payload] = event
     if (command === CommandType.Meta) {
       this._peerMeta = payload
+      this.emit('ready', this)
       return
     }
 

@@ -40,6 +40,10 @@ describe('basic', () => {
       }
     }
 
+    plex1.on('meta', (plex) => {
+      expect(plex.peerMeta).toEqual({ name: plex2.plexName, from: 'p2' })
+    })
+
     pull(pull.values([1, 2, 3]), a.sink)
     pull(
       a.source,
