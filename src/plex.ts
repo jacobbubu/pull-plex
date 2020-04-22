@@ -41,10 +41,15 @@ export class Plex extends EventEmitter {
 
   private _logger: Debug
 
-  constructor(name?: string, meta: MetaType = {}) {
+  constructor(meta: string | MetaType = '') {
     super()
-    this._plexName = name || createPlexName()
-    this._meta = { name: this._plexName, ...meta }
+    if (typeof meta === 'string') {
+      this._plexName = meta || createPlexName()
+      this._meta = { name: this._plexName }
+    } else {
+      this._plexName = (meta.name as string) || createPlexName()
+      this._meta = { ...meta, name: this._plexName }
+    }
     this._logger = DefaultLogger.ns(this._plexName)
   }
 

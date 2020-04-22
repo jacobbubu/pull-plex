@@ -2,9 +2,27 @@ import * as pull from 'pull-stream'
 import { Plex, Channel } from '../src'
 
 describe('basic', () => {
+  it('constructor', () => {
+    const plex1 = new Plex('p1')
+    expect(plex1.plexName).toEqual('p1')
+    expect(plex1.meta).toEqual({ name: 'p1' })
+
+    const plex2 = new Plex()
+    expect(plex2.plexName).toEqual('p0')
+    expect(plex2.meta).toEqual({ name: 'p0' })
+
+    const plex3 = new Plex({ service: 'signal' })
+    expect(plex3.plexName).toEqual('p1')
+    expect(plex3.meta).toEqual({ name: 'p1', service: 'signal' })
+
+    const plex4 = new Plex({ name: 'alice', service: 'signal' })
+    expect(plex4.plexName).toEqual('alice')
+    expect(plex4.meta).toEqual({ name: 'alice', service: 'signal' })
+  })
+
   it('simple', (done) => {
-    const plex1 = new Plex('p1', { from: 'p1' })
-    const plex2 = new Plex('p2', { from: 'p2' })
+    const plex1 = new Plex({ from: 'p1' })
+    const plex2 = new Plex({ from: 'p2' })
 
     const a = plex1.createChannel('a')
 
