@@ -40,9 +40,10 @@ describe('basic', () => {
       }
     }
 
-    plex1.on('meta', (plex) => {
-      expect(plex.peerMeta).toEqual({ name: plex2.plexName, from: 'p2' })
-    })
+    const peerMetaEvent = jest.fn((plex) => expect(plex).toBe(plex1))
+    plex1.on('peerMeta', peerMetaEvent)
+
+    // expect(peerMetaEvent).toBeCalledWith(plex1)
 
     pull(pull.values([1, 2, 3]), a.sink)
     pull(
