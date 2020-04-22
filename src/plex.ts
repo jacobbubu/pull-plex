@@ -24,7 +24,7 @@ export interface Plex {
 
 type JsonType = number | null | string
 
-interface MetaType {
+export interface MetaType {
   [key: string]: JsonType | MetaType
 }
 
