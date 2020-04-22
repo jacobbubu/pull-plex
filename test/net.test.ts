@@ -7,6 +7,9 @@ describe('net', () => {
   it('simple', (done) => {
     const PORT = 9988
 
+    const serverMeta = { name: 'server', serviceName: 'proxy' }
+    const clientMeta = { name: 'client', serviceName: 'signal' }
+
     let result1: any[]
     let result2: any[]
 
@@ -21,12 +24,14 @@ describe('net', () => {
     const server = net
       .createServer((socket) => {
         const client = toPull.duplex(socket) as pull.Duplex<Buffer, Buffer>
-        const plexServer = new Plex('server')
+        const plexServer = new Plex(serverMeta)
         plexServer.on('channel', (channel: Channel) => {
           pull(
             channel.source,
             pull.collect((err, ary) => {
               expect(err).toBeFalsy()
+              expect(plexServer.meta).toEqual(serverMeta)
+              expect(plexServer.peerMeta).toEqual(clientMeta)
               result2 = ary
             })
           )
@@ -39,7 +44,7 @@ describe('net', () => {
 
     const rawClient = net.createConnection({ port: PORT }, () => {
       const client = toPull.duplex(rawClient) as pull.Duplex<Buffer, Buffer>
-      const plexClient = new Plex('client')
+      const plexClient = new Plex(clientMeta)
       const a = plexClient.createChannel('a')
       a.on('close', (_) => plexClient.abort())
 
@@ -48,6 +53,8 @@ describe('net', () => {
         a.source,
         pull.collect((err, ary) => {
           expect(err).toBeFalsy()
+          expect(plexClient.meta).toEqual(clientMeta)
+          expect(plexClient.peerMeta).toEqual(serverMeta)
           result1 = ary
           hasDone()
         })
