@@ -13,8 +13,9 @@ describe('net', () => {
     let result1: any[]
     let result2: any[]
 
+    let serverSocket: net.Socket | null = null
     const hasDone = () => {
-      if (result1 && result2) {
+      if (result1?.length > 0 && result2?.length > 0) {
         expect(result1).toEqual([4, 5, 6])
         expect(result2).toEqual([1, 2, 3])
         server.close(done)
@@ -23,6 +24,8 @@ describe('net', () => {
 
     const server = net
       .createServer((socket) => {
+        serverSocket = socket
+
         const client = toPull.duplex(socket) as pull.Duplex<Buffer, Buffer>
         const plexServer = new Plex(serverMeta)
         plexServer.on('channel', (channel: Channel) => {
@@ -33,6 +36,7 @@ describe('net', () => {
               expect(plexServer.meta).toEqual(serverMeta)
               expect(plexServer.peerMeta).toEqual(clientMeta)
               result2 = ary
+              hasDone()
             })
           )
           pull(pull.values([4, 5, 6]), channel.sink)
@@ -46,7 +50,8 @@ describe('net', () => {
       const client = toPull.duplex(rawClient) as pull.Duplex<Buffer, Buffer>
       const plexClient = new Plex(clientMeta)
       const a = plexClient.createChannel('a')
-      a.on('close', (_) => plexClient.abort())
+
+      a.on('close', (_) => rawClient.destroy())
 
       pull(pull.values([1, 2, 3]), a.sink)
       pull(

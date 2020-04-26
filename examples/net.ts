@@ -24,10 +24,6 @@ const server = net
     const client = toPull.duplex(socket) as pull.Duplex<Buffer, Buffer>
     const plexServer = new Plex('server')
 
-    plexServer.on('close', (self) => {
-      server.close()
-    })
-
     plexServer.on('channel', (channel: Channel) => {
       pull(
         channel.source,
@@ -36,7 +32,7 @@ const server = net
           hasDone()
         })
       )
-      pull(pull.values([4]), channel.sink)
+      pull(pull.values([4, 5, 6]), channel.sink)
     })
 
     pull(client, wrap(plexServer), client)
@@ -49,12 +45,7 @@ const rawClient = net.createConnection({ port: PORT }, () => {
 
   const a = plexClient.createChannel('a')
 
-  a.on('close', (channel) => {
-    // finish all of work, close the underline stream
-    plexClient.abort()
-  })
-
-  pull(pull.values([1]), a.sink)
+  pull(pull.values([1, 2, 3]), a.sink)
   pull(
     a.source,
     pull.collect((_, ary) => {

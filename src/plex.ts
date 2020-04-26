@@ -1,7 +1,17 @@
 import * as pull from 'pull-stream'
-import { pushable, Read } from '@jacobbubu/pull-pushable'
+import { pushable, Read, BufferItemCallback } from '@jacobbubu/pull-pushable'
 import { EventEmitter } from 'events'
-import { PlexEvent, CommandType, Meta } from './event'
+import {
+  PlexEvent,
+  CommandType,
+  Meta,
+  OpenPlex,
+  ChannelData,
+  PlexData,
+  PlexEndOrError,
+  isPlexCommand,
+  EventIndex,
+} from './event'
 import { Channel } from './channel'
 import { Debug } from '@jacobbubu/debug'
 
@@ -12,14 +22,28 @@ const createPlexName = (function () {
   return () => `p${counter++}`
 })()
 
+const getPlexName = (meta?: string | MetaType | null) => {
+  let name: string
+  if (meta === null || meta === undefined || typeof meta === 'string') {
+    name = meta || createPlexName()
+  } else {
+    name = (meta.name as string) || createPlexName()
+  }
+  return name
+}
+
 export interface Plex {
   addListener(event: 'channel', listener: (channel: Channel) => void): this
   on(event: 'channel', listener: (channel: Channel) => void): this
   once(event: 'channel', listener: (channel: Channel) => void): this
 
-  addListener(event: 'close' | 'peerMeta', listener: (plex: Plex) => void): this
-  on(event: 'close' | 'peerMeta', listener: (plex: Plex) => void): this
-  once(event: 'close' | 'peerMeta', listener: (plex: Plex) => void): this
+  addListener(event: 'close' | 'plex', listener: (plex: Plex) => void): this
+  on(event: 'close' | 'plex', listener: (plex: Plex) => void): this
+  once(event: 'close' | 'plex', listener: (plex: Plex) => void): this
+
+  addListener(event: 'peerMeta', listener: (meta: MetaType) => void): this
+  on(event: 'peerMeta', listener: (meta: MetaType) => void): this
+  once(event: 'peerMeta', listener: (meta: MetaType) => void): this
 }
 
 type JsonType = number | null | string
@@ -30,27 +54,49 @@ export interface MetaType {
 
 export class Plex extends EventEmitter {
   private _channels: Record<string, Channel> = {}
+  private _plexes: Record<string, Plex> = {}
   private _source: Read<PlexEvent> | null = null
   private _sink: pull.Sink<PlexEvent> | null = null
   private _sourceAborted: pull.Abort = false
   private _sinkEnded: pull.EndOrError = false
   private _finished = false
-  private _plexName: string
+  private _name: string
   private _meta: MetaType
   private _peerMeta: MetaType = {}
+  private _parent: Plex | null = null
+  private _initiator = true
+  private _endSent = false
 
   private _logger: Debug
 
-  constructor(meta: string | MetaType = '') {
+  private static createChildPlex(meta: string | MetaType | null, initiator: boolean, parent: Plex) {
+    const child = new Plex(meta)
+    child._parent = parent
+    child._logger = parent._logger.ns(`child.getDisplayName()`)
+    return child
+  }
+
+  constructor(meta?: string | MetaType | Plex | null) {
     super()
-    if (typeof meta === 'string') {
-      this._plexName = meta || createPlexName()
-      this._meta = { name: this._plexName }
+    if (meta instanceof Plex) {
+      this._name = createPlexName()
+      this._meta = { name: this._name }
     } else {
-      this._plexName = (meta.name as string) || createPlexName()
-      this._meta = { ...meta, name: this._plexName }
+      this._name = getPlexName(meta)
+      this._meta =
+        meta === null || typeof meta === 'string'
+          ? { name: this._name }
+          : { ...meta, name: this._name }
     }
-    this._logger = DefaultLogger.ns(this._plexName)
+    this._logger = DefaultLogger.ns(this._name)
+  }
+
+  get isRoot() {
+    return !this._parent
+  }
+
+  get parent() {
+    return this._parent
   }
 
   get meta() {
@@ -69,8 +115,8 @@ export class Plex extends EventEmitter {
     return this._channels
   }
 
-  get plexName() {
-    return this._plexName
+  get name() {
+    return this._name
   }
 
   get logger() {
@@ -78,32 +124,39 @@ export class Plex extends EventEmitter {
   }
 
   get source() {
+    if (!this.isRoot) {
+      throw new Error('Can not create source on sub plex')
+    }
     if (!this._source) {
       const self = this
-      this._source = pushable((endOrError = true) => {
+      this._source = pushable(self.getDisplayName(), (endOrError = true) => {
         endOrError = endOrError ?? true
         self.logger.debug('plex source closed', { endOrError })
         self._sourceAborted = endOrError
         self._finish()
       })
-      this._source.push(Meta(this._meta))
+      this.pushToSource(Meta(this._meta))
     }
     return this._source
   }
 
   get sink() {
+    if (!this.isRoot) {
+      throw new Error('Can not create sink on sub plex')
+    }
     if (!this._sink) {
       const self = this
       this._sink = function (rawRead: pull.Source<PlexEvent>) {
-        rawRead(self._sourceAborted, function next(endOrError, event) {
+        rawRead(null, function next(endOrError, event) {
           self.logger.debug('plex sink read: %o', { endOrError, event })
           if (endOrError) {
             self._sinkEnded = endOrError
             self._finish()
             return
           }
-          self._processSinkData(event!)
-          rawRead(self._sourceAborted, next)
+          self._processSinkData(event!, (endOrError) => {
+            rawRead(endOrError, next)
+          })
         })
       }
     }
@@ -111,52 +164,116 @@ export class Plex extends EventEmitter {
   }
 
   abort(abort: pull.Abort = true) {
-    if (!this.ended) {
-      this.source.end(abort)
+    this.logger.debug('abort:', abort)
+    if (this.isRoot) {
+      if (!this.ended) {
+        this.source.end(abort)
+      }
+    } else {
+      this._finish()
     }
   }
 
-  private _processSinkData(event: PlexEvent) {
+  private _processSinkData(event: PlexEvent, cb?: BufferItemCallback) {
     const [command, name, payload] = event
     if (command === CommandType.Meta) {
       this._peerMeta = payload
-      this.emit('peerMeta', this)
+      this.emit('peerMeta', this._peerMeta)
+      cb?.(null)
       return
     }
 
-    if (command === CommandType.Open) {
+    if (command === CommandType.OpenChannel) {
       this._openRemoteChannel(name)
+      cb?.(null)
       return
     }
-    const channel = this._channels[name]
-    if (!channel) {
-      this.logger.warn(`Channel("${name}") doesn't exist`)
+
+    if (command === CommandType.OpenPlex) {
+      this._openRemotePlex(payload as MetaType)
+      cb?.(null)
       return
     }
-    switch (command) {
-      case CommandType.Data:
-        channel.push(payload)
-        break
-      case CommandType.EndOrError:
-        channel.remoteAbort(payload)
-        break
+
+    if (command === CommandType.PlexData) {
+      const plex = this._plexes[name]
+      if (!plex) {
+        this.logger.warn(`Plex("${name}") doesn't exist`)
+        cb?.(null)
+        return
+      }
+      const innerEvent = event[EventIndex.Payload] as PlexEvent
+      if (innerEvent[EventIndex.EventType] === CommandType.PlexEndOrError) {
+        plex.remoteAbort(innerEvent[EventIndex.Payload])
+        cb?.(null)
+      } else {
+        plex._processSinkData(innerEvent, cb)
+      }
+    } else {
+      const channel = this._channels[name]
+      if (!channel) {
+        this.logger.warn(`Channel("${name}") doesn't exist`)
+        cb?.(null)
+        return
+      }
+      switch (command) {
+        case CommandType.ChannelData:
+          channel.push(payload, cb)
+          break
+        case CommandType.ChannelEndOrError:
+          channel.remoteAbort(payload)
+          cb?.(null)
+          break
+      }
     }
   }
 
+  private _openPlex(meta: string | MetaType | null, initiator: boolean = true) {
+    const plex = Plex.createChildPlex(meta, initiator, this)
+    plex._initiator = initiator
+
+    const plexes = this._plexes
+    if (plexes[plex.name]) {
+      throw new Error(`Plex("${plex.name}") exists`)
+    }
+
+    this._plexes[plex.name] = plex
+
+    plex.on('close', (pl) => {
+      pl._sendSinkEnd(true)
+
+      delete this._plexes[pl.name]
+      this.logger.debug(`plex "${pl.name}" closed`)
+    })
+
+    if (initiator) {
+      this.pushToSource(OpenPlex(plex.name, plex.meta))
+    }
+    this.logger.debug(`plex "${plex.name}" opened`)
+    return plex
+  }
+
+  private _openRemotePlex(meta: string | MetaType | null) {
+    const plex = this._openPlex(meta, false)
+    this.logger.debug(`emit plex`, plex.name)
+    this.emit('plex', plex)
+  }
+
   private _openChannel(name: string, initiator: boolean) {
-    this.logger.debug(`channel ${name} opened`)
     const channels = this._channels
     if (channels[name]) {
-      throw new Error(`Channel(${name}) exists`)
+      throw new Error(`Channel("${name}") exists`)
     }
 
     const channel = new Channel(name, this)
     channel.on('close', (ch) => {
       delete this._channels[ch.name]
-      this.logger.debug(`channel '${ch.name}' closed`)
+      this.logger.debug(`channel "${ch.name}" closed`)
     })
     channel.open(initiator)
     channels[name] = channel
+
+    this.logger.debug(`channel "${name}" opened`)
     return channel
   }
 
@@ -174,7 +291,7 @@ export class Plex extends EventEmitter {
     })
     if (this._finished) return
 
-    if (this.ended) {
+    const clean = () => {
       this._finished = true
       for (let key in Object.keys(this._channels)) {
         if (this._channels[key]) {
@@ -182,7 +299,34 @@ export class Plex extends EventEmitter {
           delete this._channels[key]
         }
       }
+      for (let key in Object.keys(this._plexes)) {
+        if (this._plexes[key]) {
+          this._plexes[key].abort()
+          delete this._plexes[key]
+        }
+      }
       this.emit('close', this)
+    }
+
+    if (!this.isRoot) {
+      this._sourceAborted = true
+      this._sinkEnded = true
+    }
+    if (this.ended) {
+      clean()
+    }
+  }
+
+  private remoteAbort(abort: pull.Abort = true) {
+    this.logger.debug('remoteAbort:', abort)
+    this._finish()
+  }
+
+  private _sendSinkEnd(endOrError: pull.EndOrError, cb?: BufferItemCallback) {
+    if (!this.isRoot) {
+      if (this._endSent) return
+      this._endSent = true
+      this.pushToSource(PlexEndOrError(this.name, endOrError), cb)
     }
   }
 
@@ -190,8 +334,20 @@ export class Plex extends EventEmitter {
     return this._openChannel(name, true)
   }
 
-  pushToSource(event: PlexEvent) {
-    this.logger.debug('pushToSource: %o', event)
-    this.source.push(event)
+  createPlex(meta: string | MetaType | null = '') {
+    return this._openPlex(meta, true)
+  }
+
+  pushToSource(event: PlexEvent, cb?: BufferItemCallback) {
+    if (this.isRoot) {
+      this.logger.debug('pushToSource: %o', event)
+      this.source.push(event, cb)
+    } else {
+      this.parent!.pushToSource(PlexData(this.name, event), cb)
+    }
+  }
+
+  getDisplayName() {
+    return `|${this._name}${this._initiator ? '' : "'"}|`
   }
 }

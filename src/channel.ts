@@ -1,6 +1,6 @@
 import * as assert from 'assert'
 import * as pull from 'pull-stream'
-import { pushable, Read } from '@jacobbubu/pull-pushable'
+import { pushable, Read, BufferItemCallback } from '@jacobbubu/pull-pushable'
 import { EventEmitter } from 'events'
 import { Debug } from '@jacobbubu/debug'
 import { Plex } from './plex'
@@ -56,12 +56,15 @@ export class Channel extends EventEmitter {
   get source() {
     if (!this._source) {
       const self = this
-      this._source = pushable((endOrError = true) => {
-        endOrError = endOrError ?? true
-        self.logger.debug('source ended', { endOrError })
-        self._sourceAborted = endOrError
-        self._finish()
-      })
+      this._source = pushable(
+        `${self.getDisplayName()}${self._initiator ? '' : "'"}`,
+        (endOrError = true) => {
+          endOrError = endOrError ?? true
+          self.logger.debug('source ended', { endOrError })
+          self._sourceAborted = endOrError
+          self._finish()
+        }
+      )
     }
     return this._source
   }
@@ -69,39 +72,42 @@ export class Channel extends EventEmitter {
   get sink() {
     if (!this._sink) {
       const self = this
-      const plex = this.plex
+
       this._sink = function (rawRead: pull.Source<any>) {
-        rawRead(self._sourceAborted, function next(endOrError, data) {
+        rawRead(null, function next(endOrError, data) {
           self.logger.debug('sink read', { endOrError, data })
-          // 如果上游要结束，不仅 channel 要结束，还要把这件事转换成 plex 事件，传递到对端
+
           if (endOrError) {
             self._sinkEnded = endOrError
-            self._sendSinkEnd(endOrError)
-            self._finish()
+            self._sendSinkEnd(endOrError, () => {
+              self._finish()
+            })
             return
           }
-          plex.pushToSource(Event.Data(self.name, data))
-
-          rawRead(self._sourceAborted, next)
+          self._sendSinkData(data, (endOrError) => {
+            rawRead(endOrError, next)
+          })
         })
       }
     }
     return this._sink
   }
 
-  push(payload: any) {
-    this.logger.debug('push: ', payload)
-    this.source.push(payload)
+  push(payload: any, cb?: BufferItemCallback) {
+    this.logger.debug('push to channel source:', payload)
+    this.source.push(payload, cb)
   }
 
   open(initiator = true) {
     if (this._opened) {
-      throw new Error(`Channel(${this.name})already opened`)
+      throw new Error(`Channel(${this.getDisplayName()})already opened`)
     }
 
     this._initiator = initiator
+    this._logger = this.plex.logger.ns(this.getDisplayName())
+
     if (initiator) {
-      this.plex.pushToSource(Event.Open(this.name))
+      this.plex.pushToSource(Event.OpenChannel(this.name))
     }
     this._opened = true
     this.emit('open', initiator, this)
@@ -114,9 +120,8 @@ export class Channel extends EventEmitter {
     }
   }
 
-  // 由 plex 收到的 LocalEndOrError 和 RemoteEndOrError 触发的终止行为
   remoteAbort(abort: pull.Abort = true) {
-    this.logger.debug('remoteAbort: ', abort)
+    this.logger.debug('remoteAbort:', abort)
     if (!this.ended) {
       this.source.end(abort)
     }
@@ -134,10 +139,21 @@ export class Channel extends EventEmitter {
     }
   }
 
-  private _sendSinkEnd(endOrError: pull.EndOrError) {
-    assert(this.opened, `Channel("${this.name}") hasn't opened`)
+  private _sendSinkData(data: any, cb?: BufferItemCallback) {
+    assert(this.opened, `Channel("${this.getDisplayName()}") hasn't opened`)
     if (this._endSent) return
-    this._endSent = true
-    this.plex.pushToSource(Event.EndOrError(this.name, endOrError))
+
+    this.plex.pushToSource(Event.ChannelData(this.name, data), cb)
+  }
+
+  private _sendSinkEnd(endOrError: pull.EndOrError, cb?: BufferItemCallback) {
+    assert(this.opened, `Channel("${this.getDisplayName()}") hasn't opened`)
+    if (this._endSent) return
+
+    this.plex.pushToSource(Event.ChannelEndOrError(this.name, endOrError), cb)
+  }
+
+  getDisplayName() {
+    return `${this.name}${this._initiator ? '' : "'"}`
   }
 }

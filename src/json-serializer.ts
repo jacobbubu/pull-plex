@@ -9,8 +9,10 @@ const serialize = function () {
   return through(function (data) {
     if (
       Array.isArray(data) &&
-      (data[EventIndex.EventType] === CommandType.EndOrError ||
-        data[EventIndex.EventType] === CommandType.Data)
+      (data[EventIndex.EventType] === CommandType.ChannelEndOrError ||
+        data[EventIndex.EventType] === CommandType.ChannelData ||
+        data[EventIndex.EventType] === CommandType.PlexEndOrError ||
+        data[EventIndex.EventType] === CommandType.PlexData)
     ) {
       const e = data[EventIndex.Payload]
       // transform the Error object to plain array
@@ -30,8 +32,10 @@ const parse = function () {
       const parsed = JSON.parse(data)
       if (
         Array.isArray(parsed) &&
-        (parsed[EventIndex.EventType] === CommandType.EndOrError ||
-          parsed[EventIndex.EventType] === CommandType.Data)
+        (parsed[EventIndex.EventType] === CommandType.ChannelEndOrError ||
+          parsed[EventIndex.EventType] === CommandType.ChannelData ||
+          parsed[EventIndex.EventType] === CommandType.PlexEndOrError ||
+          parsed[EventIndex.EventType] === CommandType.PlexData)
       ) {
         const e = parsed[EventIndex.Payload]
         if (Array.isArray(e) && e[0] === '__ERROR__') {

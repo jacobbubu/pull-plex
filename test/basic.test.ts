@@ -5,25 +5,32 @@ import through from '@jacobbubu/pull-through'
 describe('basic', () => {
   it('constructor', () => {
     const plex1 = new Plex('p1')
-    expect(plex1.plexName).toEqual('p1')
+    expect(plex1.name).toEqual('p1')
     expect(plex1.meta).toEqual({ name: 'p1' })
 
     const plex2 = new Plex()
-    expect(plex2.plexName).toEqual('p0')
+    expect(plex2.name).toEqual('p0')
     expect(plex2.meta).toEqual({ name: 'p0' })
 
     const plex3 = new Plex({ service: 'signal' })
-    expect(plex3.plexName).toEqual('p1')
+    expect(plex3.name).toEqual('p1')
     expect(plex3.meta).toEqual({ name: 'p1', service: 'signal' })
 
     const plex4 = new Plex({ name: 'alice', service: 'signal' })
-    expect(plex4.plexName).toEqual('alice')
+    expect(plex4.name).toEqual('alice')
     expect(plex4.meta).toEqual({ name: 'alice', service: 'signal' })
   })
 
-  it('simple', (done) => {
+  it('conflict channel name', () => {
     const plex1 = new Plex({ from: 'p1' })
-    const plex2 = new Plex({ from: 'p2' })
+
+    const a = plex1.createChannel('a')
+    expect(() => plex1.createChannel('a')).toThrowError()
+  })
+
+  it('simple', (done) => {
+    const plex1 = new Plex({ name: 'p1', from: 'p1' })
+    const plex2 = new Plex({ name: 'p2', from: 'p2' })
 
     const a = plex1.createChannel('a')
 
@@ -40,10 +47,8 @@ describe('basic', () => {
       }
     }
 
-    const peerMetaEvent = jest.fn((plex) => expect(plex).toBe(plex1))
+    const peerMetaEvent = jest.fn((meta) => expect(meta).toEqual({ name: 'p2', from: 'p2' }))
     plex1.on('peerMeta', peerMetaEvent)
-
-    // expect(peerMetaEvent).toBeCalledWith(plex1)
 
     pull(pull.values([1, 2, 3]), a.sink)
     pull(
