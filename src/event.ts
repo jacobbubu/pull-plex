@@ -19,14 +19,6 @@ export enum EventIndex {
 
 export type PlexEvent = [CommandType, string, any]
 
-export function isPlexCommand(command: CommandType) {
-  return (
-    command === CommandType.OpenPlex ||
-    command === CommandType.PlexData ||
-    command === CommandType.PlexEndOrError
-  )
-}
-
 export function OpenChannel(name: string): PlexEvent {
   return [CommandType.OpenChannel, name, null]
 }

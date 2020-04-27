@@ -1,6 +1,7 @@
 import * as pull from 'pull-stream'
 import { Plex, Channel, wrap } from '../src'
 import through from '@jacobbubu/pull-through'
+import { du } from './utils'
 
 describe('basic', () => {
   it('constructor', () => {
@@ -50,9 +51,9 @@ describe('basic', () => {
     const peerMetaEvent = jest.fn((meta) => expect(meta).toEqual({ name: 'p2', from: 'p2' }))
     plex1.on('peerMeta', peerMetaEvent)
 
-    pull(pull.values([1, 2, 3]), a.sink)
-    pull(
-      a.source,
+    du(
+      [1, 2, 3],
+      a,
       pull.collect((err, ary) => {
         expect(err).toBeFalsy()
         result1 = ary
@@ -61,14 +62,15 @@ describe('basic', () => {
     )
 
     plex2.on('channel', (channel: Channel) => {
-      pull(
-        channel.source,
+      du(
+        [4, 5, 6],
+        channel,
         pull.collect((err, ary) => {
           expect(err).toBeFalsy()
           result2 = ary
+          hasDone()
         })
       )
-      pull(pull.values([4, 5, 6]), channel.sink)
     })
 
     pull(plex1, plex2, plex1)
@@ -93,9 +95,9 @@ describe('basic', () => {
       }
     }
 
-    pull(pull.values([1, 2, 3]), a.sink)
-    pull(
-      a.source,
+    du(
+      [1, 2, 3],
+      a,
       pull.collect((err, ary) => {
         expect(err).toBeFalsy()
         result1 = ary
@@ -104,14 +106,15 @@ describe('basic', () => {
     )
 
     plex2.on('channel', (channel: Channel) => {
-      pull(
-        channel.source,
+      du(
+        [4, 5, 6],
+        channel,
         pull.collect((err, ary) => {
           expect(err).toBeFalsy()
           result2 = ary
+          hasDone()
         })
       )
-      pull(pull.values([4, 5, 6]), channel.sink)
     })
 
     const wrappedPlex = wrap(plex1)
@@ -140,19 +143,18 @@ describe('basic', () => {
       }
     }
 
-    pull(
-      pull.values([1, 2, 3]),
-      through(function (d) {
-        if (d === 2) {
-          this.emit('error', new Error('error'))
-        } else {
-          this.queue(d)
-        }
-      }),
-      a.sink
-    )
-    pull(
-      a.source,
+    du(
+      pull(
+        pull.values([1, 2, 3]),
+        through(function (d) {
+          if (d === 2) {
+            this.emit('error', new Error('error'))
+          } else {
+            this.queue(d)
+          }
+        })
+      ),
+      a,
       pull.collect((err, ary) => {
         expect(err).toBeFalsy()
         result1 = ary
@@ -161,8 +163,9 @@ describe('basic', () => {
     )
 
     plex2.on('channel', (channel: Channel) => {
-      pull(
-        channel.source,
+      du(
+        [4, new Error('error')],
+        channel,
         pull.collect((err, ary) => {
           expect(err).toBeTruthy()
           expect(err).toBeInstanceOf(Error)
@@ -170,7 +173,6 @@ describe('basic', () => {
           result2 = ary
         })
       )
-      pull(pull.values([4, new Error('error')]), channel.sink)
     })
 
     const wrappedPlex = wrap(plex1)

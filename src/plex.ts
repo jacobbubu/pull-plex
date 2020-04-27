@@ -6,10 +6,8 @@ import {
   CommandType,
   Meta,
   OpenPlex,
-  ChannelData,
   PlexData,
   PlexEndOrError,
-  isPlexCommand,
   EventIndex,
 } from './event'
 import { Channel } from './channel'
@@ -51,6 +49,8 @@ type JsonType = number | null | string
 export interface MetaType {
   [key: string]: JsonType | MetaType
 }
+
+const startTime = Date.now()
 
 export class Plex extends EventEmitter {
   private _channels: Record<string, Channel> = {}
@@ -154,9 +154,8 @@ export class Plex extends EventEmitter {
             self._finish()
             return
           }
-          self._processSinkData(event!, (endOrError) => {
-            rawRead(endOrError, next)
-          })
+          self._processSinkData(event!)
+          rawRead(endOrError, next)
         })
       }
     }
@@ -174,24 +173,21 @@ export class Plex extends EventEmitter {
     }
   }
 
-  private _processSinkData(event: PlexEvent, cb?: BufferItemCallback) {
+  private _processSinkData(event: PlexEvent) {
     const [command, name, payload] = event
     if (command === CommandType.Meta) {
       this._peerMeta = payload
       this.emit('peerMeta', this._peerMeta)
-      cb?.(null)
       return
     }
 
     if (command === CommandType.OpenChannel) {
       this._openRemoteChannel(name)
-      cb?.(null)
       return
     }
 
     if (command === CommandType.OpenPlex) {
       this._openRemotePlex(payload as MetaType)
-      cb?.(null)
       return
     }
 
@@ -199,30 +195,26 @@ export class Plex extends EventEmitter {
       const plex = this._plexes[name]
       if (!plex) {
         this.logger.warn(`Plex("${name}") doesn't exist`)
-        cb?.(null)
         return
       }
       const innerEvent = event[EventIndex.Payload] as PlexEvent
       if (innerEvent[EventIndex.EventType] === CommandType.PlexEndOrError) {
         plex.remoteAbort(innerEvent[EventIndex.Payload])
-        cb?.(null)
       } else {
-        plex._processSinkData(innerEvent, cb)
+        plex._processSinkData(innerEvent)
       }
     } else {
       const channel = this._channels[name]
       if (!channel) {
         this.logger.warn(`Channel("${name}") doesn't exist`)
-        cb?.(null)
         return
       }
       switch (command) {
         case CommandType.ChannelData:
-          channel.push(payload, cb)
+          channel.push(payload)
           break
         case CommandType.ChannelEndOrError:
           channel.remoteAbort(payload)
-          cb?.(null)
           break
       }
     }

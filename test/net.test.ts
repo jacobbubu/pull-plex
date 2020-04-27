@@ -1,6 +1,7 @@
 import * as pull from 'pull-stream'
 import * as net from 'net'
 import { Plex, Channel, wrap } from '../src'
+import { du } from './utils'
 const toPull = require('stream-to-pull-stream')
 
 describe('net', () => {
@@ -29,8 +30,9 @@ describe('net', () => {
         const client = toPull.duplex(socket) as pull.Duplex<Buffer, Buffer>
         const plexServer = new Plex(serverMeta)
         plexServer.on('channel', (channel: Channel) => {
-          pull(
-            channel.source,
+          du(
+            [4, 5, 6],
+            channel,
             pull.collect((err, ary) => {
               expect(err).toBeFalsy()
               expect(plexServer.meta).toEqual(serverMeta)
@@ -39,7 +41,6 @@ describe('net', () => {
               hasDone()
             })
           )
-          pull(pull.values([4, 5, 6]), channel.sink)
         })
 
         pull(client, wrap(plexServer), client)
@@ -53,9 +54,9 @@ describe('net', () => {
 
       a.on('close', (_) => rawClient.destroy())
 
-      pull(pull.values([1, 2, 3]), a.sink)
-      pull(
-        a.source,
+      du(
+        [1, 2, 3],
+        a,
         pull.collect((err, ary) => {
           expect(err).toBeFalsy()
           expect(plexClient.meta).toEqual(clientMeta)

@@ -1,5 +1,6 @@
 import * as pull from 'pull-stream'
-import { Plex, Channel, Meta } from '../src'
+import { Plex, Channel } from '../src'
+import { duExpect } from './utils'
 
 describe('nested', () => {
   it('basic', (done) => {
@@ -33,13 +34,7 @@ describe('nested', () => {
       localChannelClosed = true
       hasDone()
     })
-    pull(pull.values([1, 2, 3]), a.sink)
-    pull(
-      a.source,
-      pull.collect((_, ary) => {
-        expect(ary).toEqual([4, 5, 6])
-      })
-    )
+    duExpect([1, 2, 3], a, [4, 5, 6])
 
     plex2.on('plex', (remoteChild) => {
       expect(remoteChild.meta).toEqual({ name: 'child', level: 2 })
@@ -57,13 +52,7 @@ describe('nested', () => {
         channel.on('close', (ch) => {
           remoteChild.abort()
         })
-        pull(
-          channel.source,
-          pull.collect((_, ary) => {
-            expect(ary).toEqual([1, 2, 3])
-          })
-        )
-        pull(pull.values([4, 5, 6]), channel.sink)
+        duExpect([4, 5, 6], channel, [1, 2, 3])
       })
     })
 
