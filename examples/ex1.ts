@@ -1,5 +1,5 @@
-// process.env.DEBUG = process.env.DEBUG ?? 'plex*'
-// process.env.DEBUG_NAME_WIDTH = '12'
+process.env.DEBUG = process.env.DEBUG ?? 'plex*'
+process.env.DEBUG_NAME_WIDTH = '12'
 
 import * as pull from 'pull-stream'
 import { Plex, Channel } from '../src'

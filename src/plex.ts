@@ -34,6 +34,13 @@ export interface Plex {
   addListener(event: 'peerMeta', listener: (meta: MetaType) => void): this
   on(event: 'peerMeta', listener: (meta: MetaType) => void): this
   once(event: 'peerMeta', listener: (meta: MetaType) => void): this
+
+  addListener(
+    event: 'channelNameConflict',
+    listener: (newId: number, channel: Channel) => void
+  ): this
+  on(event: 'channelNameConflict', listener: (newId: number, channel: Channel) => void): this
+  once(event: 'channelNameConflict', listener: (newId: number, channel: Channel) => void): this
 }
 
 type JsonType = number | null | string
@@ -41,8 +48,6 @@ type JsonType = number | null | string
 export interface MetaType {
   [key: string]: JsonType | MetaType
 }
-
-const startTime = Date.now()
 
 export class Plex extends EventEmitter {
   private _channels: Record<string, Channel> = {}
@@ -58,6 +63,8 @@ export class Plex extends EventEmitter {
   private _parent: Plex | null = null
   private _initiator = true
   private _endSent = false
+
+  private _channelId = 0
 
   private _logger: Debug
 
@@ -165,8 +172,12 @@ export class Plex extends EventEmitter {
     }
   }
 
+  private findChannelByName(name: string) {
+    return Object.values(this._channels).find((ch) => ch.name === name)
+  }
+
   private _processSinkData(event: PlexEvent) {
-    const [command, name, payload] = event
+    const [command, nameOrId, payload] = event
     if (command === CommandType.Meta) {
       this._peerMeta = payload
       this.emit('peerMeta', this._peerMeta)
@@ -174,7 +185,7 @@ export class Plex extends EventEmitter {
     }
 
     if (command === CommandType.OpenChannel) {
-      this._openRemoteChannel(name)
+      this._openRemoteChannel(nameOrId as number, payload)
       return
     }
 
@@ -184,9 +195,9 @@ export class Plex extends EventEmitter {
     }
 
     if (command === CommandType.PlexData) {
-      const plex = this._plexes[name]
+      const plex = this._plexes[nameOrId]
       if (!plex) {
-        this.logger.warn(`Plex("${name}") doesn't exist`)
+        this.logger.warn(`Plex("${nameOrId}") doesn't exist`)
         return
       }
       const innerEvent = event[EventIndex.Payload] as PlexEvent
@@ -196,9 +207,9 @@ export class Plex extends EventEmitter {
         plex._processSinkData(innerEvent)
       }
     } else {
-      const channel = this._channels[name]
+      const channel = this._channels[nameOrId]
       if (!channel) {
-        this.logger.warn(`Channel("${name}") doesn't exist`)
+        this.logger.warn(`Channel("${nameOrId}") doesn't exist`)
         return
       }
       switch (command) {
@@ -246,27 +257,33 @@ export class Plex extends EventEmitter {
     this.emit('plex', plex)
   }
 
-  private _openChannel(name: string, initiator: boolean) {
+  private _openChannel(id: number, name: string, initiator: boolean) {
     const channels = this._channels
-    if (channels[name]) {
-      throw new Error(`Channel("${name}") exists`)
+    if (channels[id]) {
+      throw new Error(`Channel("${id}/${name}") exists`)
     }
 
-    const channel = new Channel(name, this)
+    const ch = this.findChannelByName(name)
+    if (ch) {
+      this.logger.warn(`Channel("${name}") exists with id ${id}`)
+      this.emit('channelNameConflict', id, ch)
+    }
+
+    const channel = new Channel(id, name, this)
     channel.on('close', (ch) => {
-      delete this._channels[ch.name]
-      this.logger.debug(`channel "${ch.name}" closed`)
+      delete this._channels[ch.id]
+      this.logger.debug(`channel "${ch.id}/${ch.name}" closed`)
     })
     channel.open(initiator)
-    channels[name] = channel
+    channels[id] = channel
 
-    this.logger.debug(`channel "${name}" opened`)
+    this.logger.debug(`channel "${channel.id}/${channel.name}" opened`)
     return channel
   }
 
-  private _openRemoteChannel(name: string) {
-    const channel = this._openChannel(name, false)
-    this.logger.debug(`emit channel`, channel.name)
+  private _openRemoteChannel(id: number, name: string) {
+    const channel = this._openChannel(id, name, false)
+    this.logger.debug(`emit channel`, { id, name })
     this.emit('channel', channel)
     return channel
   }
@@ -318,7 +335,7 @@ export class Plex extends EventEmitter {
   }
 
   createChannel(name: string) {
-    return this._openChannel(name, true)
+    return this._openChannel(this._channelId++, name, true)
   }
 
   createPlex(meta: string | MetaType | null = '') {

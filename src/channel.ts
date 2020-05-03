@@ -30,7 +30,11 @@ export class Channel extends EventEmitter {
   private _sourceAbortSent = false
   private _logger: Debug
 
-  constructor(public readonly name: string, private readonly plex: Plex) {
+  constructor(
+    public readonly id: number,
+    public readonly name: string,
+    private readonly plex: Plex
+  ) {
     super()
     this._logger = plex.logger.ns(name)
   }
@@ -107,7 +111,7 @@ export class Channel extends EventEmitter {
     this._logger = this.plex.logger.ns(this.getDisplayName())
 
     if (initiator) {
-      this.plex.pushToSource(Event.OpenChannel(this.name))
+      this.plex.pushToSource(Event.OpenChannel(this.id, this.name))
     }
     this._opened = true
     this.emit('open', initiator, this)
@@ -151,29 +155,24 @@ export class Channel extends EventEmitter {
   private _sendSinkData(data: any, cb?: BufferItemCallback) {
     assert(this.opened, `Channel("${this.getDisplayName()}") hasn't opened`)
     if (this._sinkEndSent) return cb?.(true)
-
-    this.plex.pushToSource(Event.ChannelData(this.name, data), cb)
+    this.plex.pushToSource(Event.ChannelData(this.id, data), cb)
   }
 
   private _sendSinkEnd(endOrError: pull.EndOrError, cb?: BufferItemCallback) {
     assert(this.opened, `Channel("${this.getDisplayName()}") hasn't opened`)
     if (this._sinkEndSent) return cb?.(true)
-
     this._sinkEndSent = true
-
-    this.plex.pushToSource(Event.ChannelSinkEnd(this.name, endOrError), cb)
+    this.plex.pushToSource(Event.ChannelSinkEnd(this.id, endOrError), cb)
   }
 
   private _sendSourceAbort(endOrError: pull.EndOrError) {
     assert(this.opened, `Channel("${this.getDisplayName()}") hasn't opened`)
     if (this._sourceAbortSent) return
-
     this._sourceAbortSent = true
-
-    this.plex.pushToSource(Event.ChannelSourceAbort(this.name, endOrError))
+    this.plex.pushToSource(Event.ChannelSourceAbort(this.id, endOrError))
   }
 
   getDisplayName() {
-    return `${this.name}${this._initiator ? '' : "'"}`
+    return `${this.id}/${this.name}${this._initiator ? '' : "'"}`
   }
 }

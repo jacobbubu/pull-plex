@@ -1,7 +1,7 @@
 import * as pull from 'pull-stream'
 import { Plex, Channel, wrap } from '../src'
 import through from '@jacobbubu/pull-through'
-import { du } from './utils'
+import { du, duExpect } from './utils'
 
 describe('basic', () => {
   it('constructor', () => {
@@ -20,13 +20,6 @@ describe('basic', () => {
     const plex4 = new Plex({ name: 'alice', service: 'signal' })
     expect(plex4.name).toEqual('alice')
     expect(plex4.meta).toEqual({ name: 'alice', service: 'signal' })
-  })
-
-  it('conflict channel name', () => {
-    const plex1 = new Plex({ from: 'p1' })
-
-    const a = plex1.createChannel('a')
-    expect(() => plex1.createChannel('a')).toThrowError()
   })
 
   it('simple', (done) => {
@@ -72,6 +65,73 @@ describe('basic', () => {
         })
       )
     })
+
+    pull(plex1, plex2, plex1)
+  })
+
+  it('two channels have the same name', (done) => {
+    const plex1 = new Plex({ name: 'p1', from: 'p1' })
+    const plex2 = new Plex({ name: 'p2', from: 'p2' })
+
+    const conflictEvent = jest.fn((newId, channel) => {
+      expect(channel.name === 'a')
+      expect(channel.id !== newId)
+    })
+
+    plex1.on('channelNameConflict', conflictEvent)
+    plex2.on('channelNameConflict', conflictEvent)
+
+    const a = plex1.createChannel('a')
+    const a1 = plex1.createChannel('a')
+
+    let result: Record<string, any[]> = {}
+
+    const hasDone = () => {
+      if (Object.keys(result).length === 4) {
+        expect(conflictEvent).toBeCalledTimes(2)
+        expect(result).toEqual({
+          '0/a': [4, 5, 6],
+          '1/a': [4, 5, 6],
+          "0/a'": [1, 2, 3],
+          "1/a'": [1, 2, 3],
+        })
+        done()
+      }
+    }
+
+    du(
+      [1, 2, 3],
+      a,
+      pull.collect((err, ary) => {
+        expect(err).toBeFalsy()
+        result[a.getDisplayName()] = ary
+        hasDone()
+      })
+    )
+
+    du(
+      [1, 2, 3],
+      a1,
+      pull.collect((err, ary) => {
+        expect(err).toBeFalsy()
+        result[a1.getDisplayName()] = ary
+        hasDone()
+      })
+    )
+
+    const channelCreated = jest.fn((channel: Channel) => {
+      du(
+        [4, 5, 6],
+        channel,
+        pull.collect((err, ary) => {
+          expect(err).toBeFalsy()
+          result[channel.getDisplayName()] = ary
+          hasDone()
+        })
+      )
+    })
+
+    plex2.on('channel', channelCreated)
 
     pull(plex1, plex2, plex1)
   })
