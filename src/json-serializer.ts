@@ -9,9 +9,10 @@ const serialize = function () {
   return through(function (data) {
     if (
       Array.isArray(data) &&
-      (data[EventIndex.EventType] === CommandType.ChannelEndOrError ||
+      (data[EventIndex.EventType] === CommandType.ChannelSinkEnd ||
+        data[EventIndex.EventType] === CommandType.ChannelSourceAbort ||
         data[EventIndex.EventType] === CommandType.ChannelData ||
-        data[EventIndex.EventType] === CommandType.PlexEndOrError ||
+        data[EventIndex.EventType] === CommandType.PlexEnd ||
         data[EventIndex.EventType] === CommandType.PlexData)
     ) {
       const e = data[EventIndex.Payload]
@@ -32,9 +33,10 @@ const parse = function () {
       const parsed = JSON.parse(data)
       if (
         Array.isArray(parsed) &&
-        (parsed[EventIndex.EventType] === CommandType.ChannelEndOrError ||
+        (parsed[EventIndex.EventType] === CommandType.ChannelSinkEnd ||
+          parsed[EventIndex.EventType] === CommandType.ChannelSourceAbort ||
           parsed[EventIndex.EventType] === CommandType.ChannelData ||
-          parsed[EventIndex.EventType] === CommandType.PlexEndOrError ||
+          parsed[EventIndex.EventType] === CommandType.PlexEnd ||
           parsed[EventIndex.EventType] === CommandType.PlexData)
       ) {
         const e = parsed[EventIndex.Payload]

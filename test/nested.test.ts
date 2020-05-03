@@ -50,7 +50,7 @@ describe('nested', () => {
       })
       remoteChild.on('channel', (channel: Channel) => {
         channel.on('close', (ch) => {
-          remoteChild.abort()
+          remoteChild.end()
         })
         duExpect([4, 5, 6], channel, [1, 2, 3])
       })

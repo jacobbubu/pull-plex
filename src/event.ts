@@ -7,8 +7,11 @@ export enum CommandType {
   Meta,
   ChannelData,
   PlexData,
-  ChannelEndOrError,
-  PlexEndOrError,
+  // ask peer to close source part
+  ChannelSinkEnd,
+  // ask peer to close source and sink parts
+  ChannelSourceAbort,
+  PlexEnd,
 }
 
 export enum EventIndex {
@@ -38,10 +41,15 @@ export function ChannelData(name: string, data: any): PlexEvent {
 export function PlexData(name: string, data: any): PlexEvent {
   return [CommandType.PlexData, name, data]
 }
-export function ChannelEndOrError(name: string, endOrError: pull.EndOrError): PlexEvent {
-  return [CommandType.ChannelEndOrError, name, endOrError]
+
+export function ChannelSinkEnd(name: string, endOrError: pull.EndOrError): PlexEvent {
+  return [CommandType.ChannelSinkEnd, name, endOrError]
 }
 
-export function PlexEndOrError(name: string, endOrError: pull.EndOrError): PlexEvent {
-  return [CommandType.PlexEndOrError, name, endOrError]
+export function ChannelSourceAbort(name: string, endOrError: pull.EndOrError): PlexEvent {
+  return [CommandType.ChannelSourceAbort, name, endOrError]
+}
+
+export function PlexEnd(name: string, endOrError: pull.EndOrError): PlexEvent {
+  return [CommandType.PlexEnd, name, endOrError]
 }

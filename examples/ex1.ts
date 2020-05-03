@@ -8,7 +8,7 @@ const plex1 = new Plex('p1')
 const plex2 = new Plex('p2')
 
 const a = plex1.createChannel('a')
-pull(pull.values([1, 2]), a.sink)
+pull(pull.values(['l1', 'l2', 'l3']), a.sink)
 pull(
   a.source,
   pull.collect((_, ary) => {
@@ -23,7 +23,7 @@ plex2.on('channel', (channel: Channel) => {
       console.log(`received data on channel ${channel.name}/${plex2.name}:`, ary)
     })
   )
-  pull(pull.values([4, 5]), channel.sink)
+  pull(pull.values(['r1', 'r2', 'r3']), channel.sink)
 })
 
 pull(plex1, plex2, plex1)

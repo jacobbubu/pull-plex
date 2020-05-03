@@ -1,15 +1,7 @@
 import * as pull from 'pull-stream'
 import { pushable, Read, BufferItemCallback } from '@jacobbubu/pull-pushable'
 import { EventEmitter } from 'events'
-import {
-  PlexEvent,
-  CommandType,
-  Meta,
-  OpenPlex,
-  PlexData,
-  PlexEndOrError,
-  EventIndex,
-} from './event'
+import { PlexEvent, CommandType, Meta, OpenPlex, PlexData, PlexEnd, EventIndex } from './event'
 import { Channel } from './channel'
 import { Debug } from '@jacobbubu/debug'
 
@@ -162,7 +154,7 @@ export class Plex extends EventEmitter {
     return this._sink
   }
 
-  abort(abort: pull.Abort = true) {
+  end(abort: pull.Abort = true) {
     this.logger.debug('abort:', abort)
     if (this.isRoot) {
       if (!this.ended) {
@@ -198,7 +190,7 @@ export class Plex extends EventEmitter {
         return
       }
       const innerEvent = event[EventIndex.Payload] as PlexEvent
-      if (innerEvent[EventIndex.EventType] === CommandType.PlexEndOrError) {
+      if (innerEvent[EventIndex.EventType] === CommandType.PlexEnd) {
         plex.remoteAbort(innerEvent[EventIndex.Payload])
       } else {
         plex._processSinkData(innerEvent)
@@ -213,8 +205,11 @@ export class Plex extends EventEmitter {
         case CommandType.ChannelData:
           channel.push(payload)
           break
-        case CommandType.ChannelEndOrError:
-          channel.remoteAbort(payload)
+        case CommandType.ChannelSinkEnd:
+          channel.remoteSinkEnd(payload)
+          break
+        case CommandType.ChannelSourceAbort:
+          channel.remoteSourceAbort(payload)
           break
       }
     }
@@ -287,13 +282,13 @@ export class Plex extends EventEmitter {
       this._finished = true
       for (let key in Object.keys(this._channels)) {
         if (this._channels[key]) {
-          this._channels[key].abort()
+          this._channels[key].end()
           delete this._channels[key]
         }
       }
       for (let key in Object.keys(this._plexes)) {
         if (this._plexes[key]) {
-          this._plexes[key].abort()
+          this._plexes[key].end()
           delete this._plexes[key]
         }
       }
@@ -318,7 +313,7 @@ export class Plex extends EventEmitter {
     if (!this.isRoot) {
       if (this._endSent) return
       this._endSent = true
-      this.pushToSource(PlexEndOrError(this.name, endOrError), cb)
+      this.pushToSource(PlexEnd(this.name, endOrError), cb)
     }
   }
 

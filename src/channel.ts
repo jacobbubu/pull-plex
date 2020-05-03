@@ -22,10 +22,12 @@ export class Channel extends EventEmitter {
   private _opened = false
   private _initiator = true
 
+  private _askForEnd: pull.Abort = false
   private _sourceAborted: pull.Abort = false
   private _sinkEnded: pull.EndOrError = false
   private _finished = false
-  private _endSent = false
+  private _sinkEndSent = false
+  private _sourceAbortSent = false
   private _logger: Debug
 
   constructor(public readonly name: string, private readonly plex: Plex) {
@@ -49,10 +51,6 @@ export class Channel extends EventEmitter {
     return this._sourceAborted && this._sinkEnded
   }
 
-  get endReason() {
-    return this._sourceAborted || this._sinkEnded
-  }
-
   get source() {
     if (!this._source) {
       const self = this
@@ -74,8 +72,8 @@ export class Channel extends EventEmitter {
       const self = this
 
       this._sink = function (rawRead: pull.Source<any>) {
-        rawRead(null, function next(endOrError, data) {
-          self.logger.debug('sink read', { endOrError, data })
+        rawRead(self._askForEnd, function next(endOrError, data) {
+          self.logger.debug(`sink read(${self._askForEnd})`, { endOrError, data })
 
           if (endOrError) {
             self._sinkEnded = endOrError
@@ -85,7 +83,9 @@ export class Channel extends EventEmitter {
             return
           }
           self._sendSinkData(data, (endOrError) => {
-            rawRead(endOrError, next)
+            if (!self._sinkEnded) {
+              rawRead(self._askForEnd || endOrError, next)
+            }
           })
         })
       }
@@ -113,18 +113,27 @@ export class Channel extends EventEmitter {
     this.emit('open', initiator, this)
   }
 
-  // 给 channel 的外部消费者使用，但是代表的是本地的终止行为
-  abort(abort: pull.Abort = true) {
-    if (!this.ended) {
+  // manually end this channel (both source and sink of channel)
+  end(abort: pull.Abort = true) {
+    this.logger.debug('end:', abort)
+
+    this._askForEnd = abort
+    this.source.end(abort)
+    this._sendSourceAbort(abort)
+  }
+
+  remoteSinkEnd(abort: pull.Abort = true) {
+    // half-close the source part of channel
+    // and leave the sink part of channel
+    this.logger.debug('remoteEnd:', abort)
+    if (!this._sourceAborted) {
       this.source.end(abort)
     }
   }
 
-  remoteAbort(abort: pull.Abort = true) {
-    this.logger.debug('remoteAbort:', abort)
-    if (!this.ended) {
-      this.source.end(abort)
-    }
+  remoteSourceAbort(abort: pull.Abort = true) {
+    this.logger.debug('remoteSourceAbort:', abort)
+    this._askForEnd = abort
   }
 
   private _finish() {
@@ -141,16 +150,27 @@ export class Channel extends EventEmitter {
 
   private _sendSinkData(data: any, cb?: BufferItemCallback) {
     assert(this.opened, `Channel("${this.getDisplayName()}") hasn't opened`)
-    if (this._endSent) return
+    if (this._sinkEndSent) return cb?.(true)
 
     this.plex.pushToSource(Event.ChannelData(this.name, data), cb)
   }
 
   private _sendSinkEnd(endOrError: pull.EndOrError, cb?: BufferItemCallback) {
     assert(this.opened, `Channel("${this.getDisplayName()}") hasn't opened`)
-    if (this._endSent) return
+    if (this._sinkEndSent) return cb?.(true)
 
-    this.plex.pushToSource(Event.ChannelEndOrError(this.name, endOrError), cb)
+    this._sinkEndSent = true
+
+    this.plex.pushToSource(Event.ChannelSinkEnd(this.name, endOrError), cb)
+  }
+
+  private _sendSourceAbort(endOrError: pull.EndOrError) {
+    assert(this.opened, `Channel("${this.getDisplayName()}") hasn't opened`)
+    if (this._sourceAbortSent) return
+
+    this._sourceAbortSent = true
+
+    this.plex.pushToSource(Event.ChannelSourceAbort(this.name, endOrError))
   }
 
   getDisplayName() {

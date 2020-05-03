@@ -34,7 +34,7 @@ plex2.on('plex', (childPlex) => {
   childPlex.on('channel', (channel: Channel) => {
     channel.on('close', (ch) => {
       console.log(`${ch.getDisplayName()} closed`)
-      childPlex.abort()
+      // childPlex.end()
     })
     pull(
       channel.source,
