@@ -265,7 +265,7 @@ export class Plex extends EventEmitter {
 
     const ch = this.findChannelByName(name)
     if (ch) {
-      this.logger.warn(`Channel("${ch.getDisplayName()}")`)
+      this.logger.warn(`Channel("${ch.name}") exists with id ${ch.id}`)
       this.emit('channelNameConflict', id, ch)
     }
 
