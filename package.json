@@ -29,7 +29,8 @@
     "precommit": "lint-staged",
     "example:ex1": "tsnd --respawn examples/ex1.ts",
     "example:net": "tsnd --respawn examples/net.ts",
-    "example:nested": "tsnd --respawn examples/nested.ts"
+    "example:nested": "tsnd --respawn examples/nested.ts",
+    "example:nested-end": "tsnd --respawn examples/nested-end.ts"
   },
   "lint-staged": {
     "{src,test}/**/*.ts": [

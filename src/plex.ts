@@ -241,13 +241,13 @@ export class Plex extends EventEmitter {
       pl._sendSinkEnd(true)
 
       delete this._plexes[pl.name]
-      this.logger.debug(`plex "${pl.name}" closed`)
+      this.logger.debug(`plex "${pl.getDisplayName()}" closed`)
     })
 
     if (initiator) {
       this.pushToSource(OpenPlex(plex.name, plex.meta))
     }
-    this.logger.debug(`plex "${plex.name}" opened`)
+    this.logger.debug(`plex "${plex.getDisplayName()}" opened`)
     return plex
   }
 
@@ -260,24 +260,24 @@ export class Plex extends EventEmitter {
   private _openChannel(id: number, name: string, initiator: boolean) {
     const channels = this._channels
     if (channels[id]) {
-      throw new Error(`Channel("${id}/${name}") exists`)
+      throw new Error(`Channel("${channels[id].getDisplayName()}") exists`)
     }
 
     const ch = this.findChannelByName(name)
     if (ch) {
-      this.logger.warn(`Channel("${name}") exists with id ${id}`)
+      this.logger.warn(`Channel("${ch.getDisplayName()}")`)
       this.emit('channelNameConflict', id, ch)
     }
 
     const channel = new Channel(id, name, this)
     channel.on('close', (ch) => {
       delete this._channels[ch.id]
-      this.logger.debug(`channel "${ch.id}/${ch.name}" closed`)
+      this.logger.debug(`channel "${ch.getDisplayName()}" closed`)
     })
     channel.open(initiator)
     channels[id] = channel
 
-    this.logger.debug(`channel "${channel.id}/${channel.name}" opened`)
+    this.logger.debug(`channel "${channel.getDisplayName()}" opened`)
     return channel
   }
 

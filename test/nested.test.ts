@@ -9,12 +9,12 @@ describe('nested', () => {
     const plex2 = new Plex({ name: 'p2', level: 1 })
     const plex2PeerMetaEvent = jest.fn()
 
-    let localChildClosed = false
-    let remoteChildClosed = false
+    let localChildPlexClosed = false
+    let remoteChildPlexClosed = false
     let localChannelClosed = false
 
     const hasDone = () => {
-      if (localChildClosed && remoteChildClosed && localChannelClosed) {
+      if (localChildPlexClosed && remoteChildPlexClosed && localChannelClosed) {
         done()
       }
     }
@@ -24,7 +24,7 @@ describe('nested', () => {
 
     const childPlex = plex1.createPlex({ name: 'child', level: 2 })
     childPlex.on('close', () => {
-      localChildClosed = true
+      localChildPlexClosed = true
       hasDone()
     })
     expect(childPlex.meta).toEqual({ name: 'child', level: 2 })
@@ -45,7 +45,7 @@ describe('nested', () => {
         expect(plex2PeerMetaEvent).toBeCalledTimes(1)
         expect(plex2PeerMetaEvent.mock.calls[0][0]).toEqual({ name: 'p1', level: 1 })
 
-        remoteChildClosed = true
+        remoteChildPlexClosed = true
         hasDone()
       })
       remoteChild.on('channel', (channel: Channel) => {
@@ -53,6 +53,85 @@ describe('nested', () => {
           remoteChild.end()
         })
         duExpect([4, 5, 6], channel, [1, 2, 3])
+      })
+    })
+
+    pull(plex1, plex2, plex1)
+  })
+
+  it('channel end on child plex', (done) => {
+    const generator = function (initial: string) {
+      return () => initial
+    }
+    const d1 = {
+      source: pull(
+        pull.infinite(generator('d1')),
+        pull.asyncMap((data, cb) => {
+          setTimeout(() => cb(null, data), 30)
+        })
+      ),
+      sink: pull.drain(),
+    }
+
+    const d2 = {
+      source: pull(
+        pull.infinite(generator('d2')),
+        pull.asyncMap((data, cb) => {
+          setTimeout(() => cb(null, data), 30)
+        })
+      ),
+      sink: pull.drain(),
+    }
+
+    const plex1 = new Plex({ name: 'p1', level: 1 })
+    const plex2 = new Plex({ name: 'p2', level: 1 })
+
+    let localChildPlexClosed = false
+    let remoteChildPlexClosed = false
+    let localChannelClosed = false
+    let remoteChannelClosed = false
+
+    const hasDone = () => {
+      if (
+        localChildPlexClosed &&
+        remoteChildPlexClosed &&
+        localChannelClosed &&
+        remoteChannelClosed
+      ) {
+        done()
+      }
+    }
+
+    const childPlex = plex1.createPlex({ name: 'child', level: 2 })
+    childPlex.on('close', () => {
+      localChildPlexClosed = true
+      hasDone()
+    })
+
+    const a = childPlex.createChannel('a')
+    a.on('close', () => {
+      localChannelClosed = true
+      hasDone()
+    })
+    pull(a, d1, a)
+
+    plex2.on('plex', (remoteChild) => {
+      remoteChild.on('close', (_) => {
+        remoteChildPlexClosed = true
+        hasDone()
+      })
+      remoteChild.on('channel', (channel: Channel) => {
+        channel.on('close', (ch) => {
+          remoteChannelClosed = true
+          remoteChild.end()
+          hasDone()
+        })
+
+        setTimeout(() => {
+          a.end()
+        }, 100)
+
+        pull(channel, d2, channel)
       })
     })
 
