@@ -71,7 +71,7 @@ export class Plex extends EventEmitter {
   private static createChildPlex(meta: string | MetaType | null, initiator: boolean, parent: Plex) {
     const child = new Plex(meta)
     child._parent = parent
-    child._logger = parent._logger.ns(`child.getDisplayName()`)
+    child._logger = parent._logger.ns(child.getDisplayName())
     return child
   }
 
