@@ -27,6 +27,7 @@ describe('basic', () => {
     const plex2 = new Plex({ name: 'p2', from: 'p2' })
 
     const a = plex1.createChannel('a')
+    expect(a.isInitiator).toBe(true)
 
     let result1: any[]
     let result2: any[]
@@ -55,6 +56,7 @@ describe('basic', () => {
     )
 
     plex2.on('channel', (channel: Channel) => {
+      expect(channel.isInitiator).toBe(false)
       du(
         [4, 5, 6],
         channel,

@@ -63,6 +63,7 @@ export class Channel extends EventEmitter {
         (endOrError = true) => {
           endOrError = endOrError ?? true
           self.logger.debug('source ended', { endOrError })
+          this._sendSourceAbort(endOrError)
           self._sourceAborted = endOrError
           self._finish()
         }
@@ -123,7 +124,6 @@ export class Channel extends EventEmitter {
 
     this._askForEnd = abort
     this.source.end(abort)
-    this._sendSourceAbort(abort)
   }
 
   remoteSinkEnd(abort: pull.Abort = true) {
