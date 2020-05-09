@@ -297,17 +297,14 @@ export class Plex extends EventEmitter {
 
     const clean = () => {
       this._finished = true
-      for (let key in Object.keys(this._channels)) {
-        if (this._channels[key]) {
-          this._channels[key].end()
-          delete this._channels[key]
-        }
+
+      for (let key in this._channels) {
+        this._channels[key].end()
+        delete this._channels[key]
       }
-      for (let key in Object.keys(this._plexes)) {
-        if (this._plexes[key]) {
-          this._plexes[key].end()
-          delete this._plexes[key]
-        }
+      for (let key in this._plexes) {
+        this._plexes[key].end()
+        delete this._plexes[key]
       }
       this.emit('close', this)
     }
