@@ -7,9 +7,16 @@ import { Debug } from '@jacobbubu/debug'
 
 const DefaultLogger = Debug.create('plex')
 
+function createId() {
+  return [1, 1, 1]
+    .map(function () {
+      return Math.random().toString(16).slice(2, 6).toUpperCase()
+    })
+    .join('')
+}
+
 const createPlexName = (function () {
-  let counter = 0
-  return () => `p${counter++}`
+  return () => `p-${createId()}`
 })()
 
 const getPlexName = (meta?: string | MetaType | null) => {
@@ -63,8 +70,6 @@ export class Plex extends EventEmitter {
   private _parent: Plex | null = null
   private _initiator = true
   private _endSent = false
-
-  private _channelId = 0
 
   private _logger: Debug
 
@@ -185,7 +190,7 @@ export class Plex extends EventEmitter {
     }
 
     if (command === CommandType.OpenChannel) {
-      this._openRemoteChannel(nameOrId as number, payload)
+      this._openRemoteChannel(nameOrId, payload)
       return
     }
 
@@ -257,7 +262,7 @@ export class Plex extends EventEmitter {
     this.emit('plex', plex)
   }
 
-  private _openChannel(id: number, name: string, initiator: boolean) {
+  private _openChannel(id: string, name: string, initiator: boolean) {
     const channels = this._channels
     if (channels[id]) {
       throw new Error(`Channel("${channels[id].getDisplayName()}") exists`)
@@ -281,7 +286,7 @@ export class Plex extends EventEmitter {
     return channel
   }
 
-  private _openRemoteChannel(id: number, name: string) {
+  private _openRemoteChannel(id: string, name: string) {
     const channel = this._openChannel(id, name, false)
     this.logger.debug(`emit channel`, { id, name })
     this.emit('channel', channel)
@@ -332,7 +337,7 @@ export class Plex extends EventEmitter {
   }
 
   createChannel(name: string) {
-    return this._openChannel(this._channelId++, name, true)
+    return this._openChannel(createId(), name, true)
   }
 
   createPlex(meta: string | MetaType | null = '') {

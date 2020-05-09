@@ -31,7 +31,7 @@ export class Channel extends EventEmitter {
   private _logger: Debug
 
   constructor(
-    public readonly id: number,
+    public readonly id: string,
     public readonly name: string,
     private readonly plex: Plex
   ) {

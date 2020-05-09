@@ -6,16 +6,13 @@ import { du, duExpect } from './utils'
 describe('basic', () => {
   it('constructor', () => {
     const plex1 = new Plex('p1')
-    expect(plex1.name).toEqual('p1')
-    expect(plex1.meta).toEqual({ name: 'p1' })
+    expect(plex1.meta).toEqual({ name: plex1.name })
 
     const plex2 = new Plex()
-    expect(plex2.name).toEqual('p0')
-    expect(plex2.meta).toEqual({ name: 'p0' })
+    expect(plex2.meta).toEqual({ name: plex2.name })
 
     const plex3 = new Plex({ service: 'signal' })
-    expect(plex3.name).toEqual('p1')
-    expect(plex3.meta).toEqual({ name: 'p1', service: 'signal' })
+    expect(plex3.meta).toEqual({ name: plex3.name, service: 'signal' })
 
     const plex4 = new Plex({ name: 'alice', service: 'signal' })
     expect(plex4.name).toEqual('alice')
@@ -91,12 +88,13 @@ describe('basic', () => {
     const hasDone = () => {
       if (Object.keys(result).length === 4) {
         expect(conflictEvent).toBeCalledTimes(2)
-        expect(result).toEqual({
-          '0/a': [4, 5, 6],
-          '1/a': [4, 5, 6],
-          "0/a'": [1, 2, 3],
-          "1/a'": [1, 2, 3],
-        })
+        const expected: Record<string, any> = {}
+        expected[a.id + '/a'] = [4, 5, 6]
+        expected[a1.id + '/a'] = [4, 5, 6]
+        expected[a.id + `/a'`] = [1, 2, 3]
+        expected[a1.id + `/a'`] = [1, 2, 3]
+
+        expect(result).toEqual(expected)
         done()
       }
     }
