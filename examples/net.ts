@@ -1,6 +1,6 @@
-process.env.DEBUG = process.env.DEBUG ?? 'plex*'
-process.env.DEBUG_NAME_WIDTH = '32'
-process.env.DEBUG_COLOR = 'true'
+// process.env.DEBUG = process.env.DEBUG ?? 'plex*'
+// process.env.DEBUG_NAME_WIDTH = '32'
+// process.env.DEBUG_COLOR = 'true'
 
 import * as pull from 'pull-stream'
 import * as net from 'net'
