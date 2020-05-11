@@ -1,9 +1,6 @@
 import * as pull from 'pull-stream'
-import split from '@jacobbubu/pull-split'
 import through from '@jacobbubu/pull-through'
 import { CommandType, EventIndex } from './event'
-
-const toBeTruthy = (d: any) => !!d
 
 const serialize = function () {
   return through(function (data) {
@@ -21,16 +18,14 @@ const serialize = function () {
         data[EventIndex.Payload] = ['__ERROR__', e.message]
       }
     }
-    this.queue(JSON.stringify(data) + '\n')
+    this.queue(Buffer.from(JSON.stringify(data)))
   })
 }
 
 const parse = function () {
   return pull(
-    split(),
-    pull.filter(toBeTruthy),
-    pull.map((data) => {
-      const parsed = JSON.parse(data)
+    pull.map((data: Buffer | string) => {
+      const parsed = JSON.parse(data.toString())
       if (
         Array.isArray(parsed) &&
         (parsed[EventIndex.EventType] === CommandType.ChannelSinkEnd ||

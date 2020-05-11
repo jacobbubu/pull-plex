@@ -114,8 +114,8 @@
   },
   "dependencies": {
     "@jacobbubu/debug": "^1.1.5",
+    "@jacobbubu/pull-length-prefixed": "^1.0.0",
     "@jacobbubu/pull-pushable": "^1.1.1",
-    "@jacobbubu/pull-split": "^1.0.0",
     "@jacobbubu/pull-through": "^1.1.0",
     "pull-stream": "^3.6.14"
   }
