@@ -2,8 +2,8 @@ import * as pull from 'pull-stream'
 import { Plex, Channel } from '../src'
 import { duExpect } from './utils'
 
-describe('nested', () => {
-  it('basic', (done) => {
+describe('pull-plex', () => {
+  it('nested', (done) => {
     const plex1 = new Plex({ name: 'p1', level: 1 })
     const plex1PeerMetaEvent = jest.fn()
     const plex2 = new Plex({ name: 'p2', level: 1 })

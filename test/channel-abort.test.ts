@@ -1,8 +1,8 @@
 import * as pull from 'pull-stream'
 import { Plex } from '../src'
 
-describe('channel-abort', () => {
-  it('simple', (done) => {
+describe('pull-plex', () => {
+  it('channel-abort', (done) => {
     const generator = function (initial: string) {
       return () => initial
     }

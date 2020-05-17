@@ -5,8 +5,9 @@ import { du } from './utils'
 const toPull = require('stream-to-pull-stream')
 
 describe('pull-plex', () => {
-  it('next', (done) => {
+  it('zipped', (done) => {
     const PORT = 9988
+    const zipped = true
 
     const serverMeta = { name: 'server', serviceName: 'proxy' }
     const clientMeta = { name: 'client', serviceName: 'signal' }
@@ -43,7 +44,7 @@ describe('pull-plex', () => {
           )
         })
 
-        pull(client, wrap(plexServer), client)
+        pull(client, wrap(plexServer, { zipped }), client)
       })
       .listen(PORT)
 
@@ -66,7 +67,7 @@ describe('pull-plex', () => {
         })
       )
 
-      pull(client, wrap(plexClient), client)
+      pull(client, wrap(plexClient, { zipped }), client)
     })
   })
 })

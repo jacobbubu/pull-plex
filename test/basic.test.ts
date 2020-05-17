@@ -3,7 +3,7 @@ import { Plex, Channel, wrap } from '../src'
 import through from '@jacobbubu/pull-through'
 import { du, duExpect } from './utils'
 
-describe('basic', () => {
+describe('pull-plex', () => {
   it('constructor', () => {
     const plex1 = new Plex('p1')
     expect(plex1.meta).toEqual({ name: plex1.name })
