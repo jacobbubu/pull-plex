@@ -24,6 +24,7 @@ const hasDone = () => {
   if (result1 && result2) {
     console.log(result1, result2)
     console.log(`in: ${inThrough.totalBytes}, out: ${outThrough.totalBytes}`)
+    server.close()
   }
 }
 
@@ -58,6 +59,8 @@ const rawClient = net.createConnection({ port: PORT }, () => {
   const plexClient = new Plex('client')
 
   const a = plexClient.createChannel('a')
+
+  a.on('close', (_) => rawClient.destroy())
 
   pull(pull.values([1, 2, 3]), a.sink)
   pull(

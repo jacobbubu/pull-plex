@@ -6,7 +6,7 @@ const toPull = require('stream-to-pull-stream')
 
 describe('pull-plex', () => {
   it('zipped', (done) => {
-    const PORT = 9988
+    const PORT = 9989
     const zipped = true
 
     const serverMeta = { name: 'server', serviceName: 'proxy' }
