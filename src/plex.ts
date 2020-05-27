@@ -182,7 +182,7 @@ export class Plex extends EventEmitter {
   }
 
   private _processSinkData(event: PlexEvent) {
-    const [command, nameOrId, payload] = event
+    const [command, nameOrId, payload, opts] = event
     if (command === CommandType.Meta) {
       this._peerMeta = payload
       this.emit('peerMeta', this._peerMeta)
@@ -190,7 +190,7 @@ export class Plex extends EventEmitter {
     }
 
     if (command === CommandType.OpenChannel) {
-      this._openRemoteChannel(nameOrId, payload)
+      this._openRemoteChannel(nameOrId, payload, opts)
       return
     }
 
@@ -262,7 +262,7 @@ export class Plex extends EventEmitter {
     this.emit('plex', plex)
   }
 
-  private _openChannel(id: string, name: string, initiator: boolean) {
+  private _openChannel(id: string, name: string, initiator: boolean, opts?: any) {
     const channels = this._channels
     if (channels[id]) {
       throw new Error(`Channel("${channels[id].getDisplayName()}") exists`)
@@ -274,7 +274,7 @@ export class Plex extends EventEmitter {
       this.emit('channelNameConflict', id, ch)
     }
 
-    const channel = new Channel(id, name, this)
+    const channel = new Channel(id, name, this, opts)
     channel.on('close', (ch) => {
       delete this._channels[ch.id]
       this.logger.debug(`channel "${ch.getDisplayName()}" closed`)
@@ -286,8 +286,8 @@ export class Plex extends EventEmitter {
     return channel
   }
 
-  private _openRemoteChannel(id: string, name: string) {
-    const channel = this._openChannel(id, name, false)
+  private _openRemoteChannel(id: string, name: string, opts?: any) {
+    const channel = this._openChannel(id, name, false, opts)
     this.logger.debug(`emit channel`, { id, name })
     this.emit('channel', channel)
     return channel
@@ -336,8 +336,8 @@ export class Plex extends EventEmitter {
     }
   }
 
-  createChannel(name: string) {
-    return this._openChannel(createId(), name, true)
+  createChannel(name: string, opts?: any) {
+    return this._openChannel(createId(), name, true, opts)
   }
 
   createPlex(meta: string | MetaType | null = '') {

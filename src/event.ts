@@ -20,10 +20,10 @@ export enum EventIndex {
   Payload,
 }
 
-export type PlexEvent = [CommandType, string, any]
+export type PlexEvent = [CommandType, string, any, any?]
 
-export function OpenChannel(id: string, name: string): PlexEvent {
-  return [CommandType.OpenChannel, id, name]
+export function OpenChannel(id: string, name: string, opts?: any): PlexEvent {
+  return [CommandType.OpenChannel, id, name, opts]
 }
 
 export function OpenPlex(name: string, meta: MetaType): PlexEvent {

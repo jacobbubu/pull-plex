@@ -23,8 +23,9 @@ describe('pull-plex', () => {
     const plex1 = new Plex({ name: 'p1', from: 'p1' })
     const plex2 = new Plex({ name: 'p2', from: 'p2' })
 
-    const a = plex1.createChannel('a')
+    const a = plex1.createChannel('a', 'OPTIONS')
     expect(a.isInitiator).toBe(true)
+    expect(a.opts).toBe('OPTIONS')
 
     let result1: any[]
     let result2: any[]
@@ -54,6 +55,7 @@ describe('pull-plex', () => {
 
     plex2.on('channel', (channel: Channel) => {
       expect(channel.isInitiator).toBe(false)
+      expect(channel.opts).toBe('OPTIONS')
       du(
         [4, 5, 6],
         channel,

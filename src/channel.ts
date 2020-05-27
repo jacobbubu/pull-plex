@@ -33,7 +33,8 @@ export class Channel extends EventEmitter {
   constructor(
     public readonly id: string,
     public readonly name: string,
-    private readonly plex: Plex
+    private readonly plex: Plex,
+    public readonly opts?: any
   ) {
     super()
     this._logger = plex.logger.ns(name)
@@ -112,7 +113,7 @@ export class Channel extends EventEmitter {
     this._logger = this.plex.logger.ns(this.getDisplayName())
 
     if (initiator) {
-      this.plex.pushToSource(Event.OpenChannel(this.id, this.name))
+      this.plex.pushToSource(Event.OpenChannel(this.id, this.name, this.opts))
     }
     this._opened = true
     this.emit('open', initiator, this)
