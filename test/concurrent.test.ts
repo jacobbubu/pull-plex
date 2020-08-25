@@ -27,7 +27,7 @@ describe('pull-plex', () => {
 
     const hasDone = () => {
       if (localAClosedAt && localBClosedAt && remoteAClosedAt && remoteBClosedAt) {
-        expect(remoteBClosedAt - remoteAClosedAt).toBeGreaterThan(200)
+        expect(remoteBClosedAt - remoteAClosedAt).toBeGreaterThan(180)
         done()
       }
     }

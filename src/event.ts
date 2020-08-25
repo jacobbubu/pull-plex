@@ -3,15 +3,15 @@ import { MetaType } from './'
 
 export enum CommandType {
   OpenChannel = 0,
-  OpenPlex,
-  Meta,
-  ChannelData,
-  PlexData,
+  OpenPlex = 1,
+  Meta = 2,
+  ChannelData = 3,
+  PlexData = 4,
   // ask peer to close source part
-  ChannelSinkEnd,
+  ChannelSinkEnd = 5,
   // ask peer to close source and sink parts
-  ChannelSourceAbort,
-  PlexEnd,
+  ChannelSourceAbort = 6,
+  PlexEnd = 7,
 }
 
 export enum EventIndex {
